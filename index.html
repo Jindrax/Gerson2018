@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="w3.css">
+<style>
+  div.tooltip {
+    position: absolute;
+    background-color: white;
+    border: 1px solid black;
+    color: black;
+    font-weight: bold;
+    padding: 4px 8px;
+    display: none;
+  }
+
+  .sidebar {
+    width: 30%;
+    background-color: #000000;
+  }
+
+  .map {
+    margin-left: 30%;
+    overflow: hidden;
+  }
+
+  .map-layer {
+    fill: #fff;
+    stroke: #aaa;
+    overflow: hidden;
+  }
+
+  body {
+    overflow: hidden;
+  }
+
+  .titulo {
+    font-size: 6vh;
+    display: block;
+
+  }
+
+  .contenedor {
+    background: white;
+  }
+
+  .datos {
+    font-size: 2vh;
+  }
+
+  .tract {
+    fill: rgb(255, 0, 0);
+  }
+
+  .tract:hover {
+    fill: orange;
+  }
+
+  .tract-border {
+    fill: none;
+    stroke: #777;
+    stroke-width: 0.5px;
+    pointer-events: none;
+  }
+
+  .cat1 {
+    fill: green;
+  }
+
+  .cat2 {
+    fill: orange;
+  }
+
+  .cat3 {
+    fill: blue;
+  }
+
+  .cat4 {
+    fill: yellow;
+  }
+</style>
+<script src="d3.v4.min.js"></script>
+<script src="topojson.v1.min.js"></script>
+<script src="jquery.js"></script>
+<div id="sidebarLeft" class="w3-sidebar sidebar">
+  <header class="w3-card-4 w3-container w3-blue">
+    <h1>Regional</h1>
+  </header>
+  <div class="w3-container contenedor">
+    <p class="datos">Total Clientes Actuales: 382</p>
+    <p class="datos">Total Posibles Clientes Nuevos: 226</p>
+    <p class="datos">Total Posibles Clientes PQN: 33</p>
+    <p class="datos">Total Posibles Clientes Varios: 226</p>
+    <p class="datos">Total Posibles Clientes PQN Nuevos: 33</p>
+    <p class="datos">Ventas Programadas: $74.200.000</p>
+  </div>
+  <header class="w3-card-4 w3-container w3-blue">
+    <h1>Caqueta</h1>
+  </header>
+  <div class="w3-container contenedor">
+    <p class="datos">Total Clientes Actuales: 24</p>
+    <p class="datos">Total Posibles Clientes Nuevos: 36</p>
+    <p class="datos">Total Posibles Clientes PQN: 5</p>
+    <p class="datos">Total Posibles Clientes Varios: 36</p>
+    <p class="datos">Total Posibles Clientes PQN Nuevos: 5</p>
+    <p class="datos">Ventas Programadas: $11.600.000</p>
+  </div>
+  <header class="w3-card-4 w3-container w3-blue">
+    <h1>Huila</h1>
+  </header>
+  <div class="w3-container contenedor">
+    <p class="datos">Total Clientes Actuales: 119</p>
+    <p class="datos">Total Posibles Clientes Nuevos: 88</p>
+    <p class="datos">Total Posibles Clientes PQN: 14</p>
+    <p class="datos">Total Posibles Clientes Varios: 88</p>
+    <p class="datos">Total Posibles Clientes PQN Nuevos: 14</p>
+    <p class="datos">Ventas Programadas: $26.500.000</p>
+  </div>
+  <header class="w3-card-4 w3-container w3-blue">
+    <h1>Tolima</h1>
+  </header>
+  <div class="w3-container contenedor">
+    <p class="datos">Total Clientes Actuales: 239</p>
+    <p class="datos">Total Posibles Clientes Nuevos: 102</p>
+    <p class="datos">Total Posibles Clientes PQN: 14</p>
+    <p class="datos">Total Posibles Clientes Varios: 102</p>
+    <p class="datos">Total Posibles Clientes PQN Nuevos: 14</p>
+    <p class="datos">Ventas Programadas: $36.100.000</p>
+  </div>
+</div>
+<script>
+  var anchoTotal = $(window).width();
+  var altoTotal = $(window).height();
+  var width = anchoTotal * (70 / 100);
+  var height = $(window).height();
+  var tooltip = d3.select("body").append("div").attr("class", "tooltip w3-card-4");
+  var svg = d3.select("body").append("svg")
+    .attr("id", "lienzo")
+    .attr("width", width)
+    .attr("height", height)
+    .attr("class", "map")
+    .style("overflow", "hidden");
+  d3.json("consolidado.json", function (error, data) {
+    if (error) throw error;
+    var land = topojson.feature(data, {
+      type: "GeometryCollection",
+      geometries: data.objects.mpios.geometries.filter(function (d) {
+        return (d.id / 10000 | 0) % 100 !== 99;
+      })
+    });
+    var margin = { 'w': width * (3 / 100), 'h': height * (3 / 100) };
+    var path = d3.geoPath()
+      .projection(d3.geoTransverseMercator()
+        .rotate([74 + 30 / 60, -38 - 50 / 60])
+        .fitExtent([[margin.w, margin.h], [width - margin.h, height - margin.h]], land));
+    svg.selectAll("path")
+      .data(land.features)
+      .enter().append("path")
+      .attr("class", function (d) {
+        if (d.properties.category == '1') { return 'cat1'; }
+        if (d.properties.category == '2') { return 'cat2'; }
+        if (d.properties.category == '3') { return 'cat3'; }
+        if (d.properties.category == '4') { return 'cat4'; }
+      })
+      .attr("d", path)
+      //.append("title")
+      //.text(function(d) { return d.properties.name; })
+      .on("mouseover", showTooltip)
+      .on("mousemove", moveTooltip)
+      .on("mouseout", hideTooltip)
+      .on("click", function (d) {
+        console.log('funciona')
+      });
+    svg.append("path")
+      .datum(topojson.mesh(data, data.objects.mpios, function (a, b) { return a !== b; }))
+      .attr("class", "tract-border")
+      .attr("d", path);
+  });
+  var tooltipOffset = { x: 15, y: -15 };
+  var bottomMargin = height * (75 / 100);
+  function showTooltip(d) {
+    moveTooltip();
+    tooltip.style("display", "block")
+      .html(
+        '<header class = "w3-container w3-red"><h4>' + d.properties.name + '</h4></header>' +
+        'Poblacion: ' + d.properties.population +
+        '<br>Clientes Actuales: ' + d.properties.actualclients +
+        '<br>Posibles nuevos clientes: ' + d.properties.posnewclients +
+        '<br>Posibles Clientes PQN: ' + d.properties.pospqnclients +
+        '<br>Posibles Clientes Varios: ' + d.properties.posvariousclients +
+        '<br>Posibles Clientes PQN Nuevos: ' + d.properties.posmixclients +
+        '<br>Ventas Programadas: $' + Number(d.properties.progsales).toLocaleString('en')
+      );
+  }
+  function moveTooltip() {
+    tooltip.style("top", function () {
+      if (d3.event.pageY > bottomMargin) {
+        return (d3.event.pageY - tooltip.node().getBoundingClientRect().height) + "px";
+      } else {
+        return (d3.event.pageY + tooltipOffset.y) + "px";
+      }
+    })
+      .style("left", (d3.event.pageX + tooltipOffset.x) + "px");
+  }
+  function hideTooltip() {
+    tooltip.style("display", "none");
+  }
+</script>
